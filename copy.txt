@@ -1,0 +1,409 @@
+1.Maven java project 
+Go to new ->project ->other->mavenproject->
+In archtype selection untick the showlatest version
+infilter type org.apache.maven.quickstart 1.4 and install and finish
+then right click on project click maven clean,install,test,build (type clean install test in goals )  finish 
+->finally run as java application
+
+
+
+
+2.same process but in filter choose 
+org.apache.maven.simplewebapp 1.4 do the same 
+and in pom.xml add dependency 
+<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>servlet-api</artifactId>
+    <version>2.5</version>
+</dependency>
+
+
+
+
+
+
+3.to create image and push to docker hub
+first create server.js
+any console statement
+and Dockerfile
+FROM node:16-alpine
+WORKDIR /app
+COPY server.js /app
+CMD ["node", "server.js"]
+
+docker build -t simpleserver .
+docker run simpleserver
+docker ps
+docker login
+docker tag simpleserver mohithsai2006/simpleserver
+docker push mohithsai2006/simpleserver
+docker ps -a
+docker rm 3cbc7a0447ce(paste container id)
+docker rmi  simpleserver
+docker pull mohithsai2006/simpleserver
+docker run mohithsai2006/simpleserver
+
+
+
+
+4.cloning the javawebproject and build and deploy using docker 
+
+-->clone https://github.com/Mohithsai2006/mavenjavaweb.git
+-->now cd mavenjavaweb
+-->create Dockerfile 
+FROM tomcat:9.0-jdk17
+
+# Remove default Tomcat apps
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+# Copy your WAR from the Maven target folder
+COPY target/samplejavawebproject.war /usr/local/tomcat/webapps/ROOT.war
+
+EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
+-->docker build -t mavenjavaweb .
+-->docker run -p 8000:8080 mavenjavaweb
+-->it will work in localhost:8000
+
+
+4.)DOCKER MULTICONTAINER SETUP
+mkdir wordpress-mysql-app
+cd wordpress-mysql-app
+
+
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: unless-stopped
+    # Set environment variables for MySQL (Crucial for initial setup)
+    environment:
+      MYSQL_ROOT_PASSWORD: your_root_password # CHANGE THIS
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpressuser # CHANGE THIS
+      MYSQL_PASSWORD: your_db_password # CHANGE THIS
+    volumes:
+      - db_data:/var/lib/mysql # Persistent storage for database data
+    networks:
+      - wp-network
+
+  wordpress:
+    depends_on:
+      - db # Ensure the database starts before WordPress
+    image: wordpress:latest
+    container_name: wordpress_app
+    restart: unless-stopped
+    # Map port 80 in the container to port 8080 on your host machine
+    ports:
+      - "8085:80" 
+    # Set environment variables for WordPress to connect to MySQL
+    environment:
+      WORDPRESS_DB_HOST: db:3306 # 'db' is the service name of the MySQL container
+      WORDPRESS_DB_USER: wordpressuser # Must match MYSQL_USER above
+      WORDPRESS_DB_PASSWORD: your_db_password # Must match MYSQL_PASSWORD above
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp_content:/var/www/html/wp-content # Persistent storage for themes/plugins/uploads
+    networks:
+      - wp-network
+
+volumes:
+  db_data: # Define a volume for the MySQL database files
+  wp_content: # Define a volume for WordPress content (themes, plugins, uploads)
+
+networks:
+  wp-network: # Define a custom network for containers to communicate
+
+
+
+docker-compose.yml this file
+
+
+
+docker-compose up -d
+
+
+
+
+
+
+
+
+
+
+
+5.Jenkins java freestyle project to build and test
+gitlink: https://github.com/budarajumadhurika/SampleMavenJavaProject.git
+
+JENKINS:
+(This apache step is not necessary in college pcs)
+First go to c->apache tomact->bin->startup.bat double click it 
+if u want to change the port c->apachetomact->conf->server.xml and find connector port and change it !!!
+create new job java_build:
+source code->
+git->repo->master or main
+
+prebuild:
+top level maven ->
+clean,install in goals with respected mavens 
+postbuild:
+Archive the artifacts:**/*
+post build :
+build other->java_test
+TEST:
+
+environtemnt:delete workspace
+prebuild:
+Copy artifacts from another project:java_build     artifacts: **/*
+Invoke top-level Maven targets: test in goal with respected maven
+post build:
+Archive the artifacts:**/*
+
+
+6.Jenkins java webproject freestyle
+
+
+web_build:
+git->repo->master or main
+triggers:poll SCM - * * * * *
+prebuild:
+top level maven :
+clean,install
+postbuild:
+Archive the artifacts:**/*
+build other:web_test
+
+TEST:
+none
+no trigger
+environtemnt:delete workspace
+prebuild:
+Copy artifacts from another project:build      **/*
+Invoke top-level Maven targets: test
+post build:
+Archive the artifacts:**/*
+build other: web_deploy
+
+web_deploy:
+none
+no trigger
+prebuild:
+Copy artifacts from another project: test  **/*
+post build:
+Deploy war/ear to a container:   WAR/EAR files: **/*.war,  context path: any name
+add container tomcat 9 add credentials (c->apache->conf->user.xml)
+
+
+7.JENKINS SCRIPTED PIPELINE JAVAPROJECT
+
+node {
+
+    stage('Clone Repository') {
+        git branch: 'main',
+            url: 'https://github.com/budarajumadhurika/SampleMavenJavaProject.git'
+    }
+
+    stage('Build') {
+        bat 'mvn clean package'
+    }
+
+    stage('Test') {
+        bat 'mvn test'
+    }
+
+    stage('Archive') {
+        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+        junit 'target/surefire-reports/*.xml'
+    }
+}
+
+
+8.WEBPROJECT SCRIPTED PIPELINE JENKINS
+
+node {
+
+    stage('Clone Repository') {
+        git branch: 'main',
+            url: 'https://github.com/budarajumadhurika/SampleMavenWebProject.git'
+    }
+
+    stage('Build WAR') {
+        bat 'mvn clean package'
+    }
+
+    stage('Run Tests') {
+        bat 'mvn test'
+    }
+
+    stage('Archive WAR & Test Results') {
+
+        // Archive WAR file
+        archiveArtifacts artifacts: 'target/*.war', fingerprint: true
+
+        // If test reports exist → archive them, otherwise skip
+        if (fileExists('target/surefire-reports')) {
+            junit 'target/surefire-reports/*.xml'
+        } else {
+            echo "No test reports found — skipping junit archiving."
+        }
+    }
+
+    stage('Summary') {
+        echo "Build completed successfully!"
+    }
+}
+
+
+9.AWS
+
+
+
+-->First we have to save key value pair .pam file in desktop in AWS folder
+-->open cmd in this directory
+-->now paste the ssh key which was copied from aws instance and click enter
+then run following commands
+-->sudo apt update
+-->sudo apt-get install docker.io
+-->sudo apt install git
+-->sudo apt install nano
+now in desktop create a folder Example in that create simple index.html  with any <h> and <p> tags
+push the index.html to git 
+After pushing clone the repo url
+
+Run the following commands
+-->git clone url
+-->ls
+you can see ur repo directory 
+-->cd yourdir
+-->ls
+you will see index.html
+-->nano Dockerfile
+then paste the following to dockerfile
+FROM nginx:alpine
+COPY . /usr/share/nginx/html
+-->press ctrl+o and enter then ctrl+x to exit
+-->sudo  docker build -t myweb .
+-->sudo  docker run -d -p 80:80 myweb
+then click public ipv4 in the instance go and access in browser...
+
+
+if maven project then the docker file would be
+FROM tomcat:9-jdk11
+COPY target/* .war /usr/local/tomcat/webapps/
+
+
+
+10.Kubernetes
+(docker on lo pettu)
+
+
+
+
+kubectl version --client
+minikube start
+
+
+kubectl create deployment mynginx --image=nginx
+
+if already created then 
+kubectl set image deployment/myngnix nginx=nginx:latest
+
+kubectl get deployments
+
+Check the following commands:
+kubectl get pods
+kubectl describe pods
+
+
+kubectl expose deployment mynginx --type=NodePort --port=80 --target-port=80
+
+
+kubectl scale deployment mynginx --replicas=4
+kubectl get service myngnix
+
+kubectl port-forward svc/mynginx 8081:80
+Access the app via http://localhost:8081.
+
+
+If Error, use this option, Using Minikube Tunnel:
+o	Start the tunnel:
+minikube tunnel
+o	Retrieve the service URL:
+minikube service mynginx --url
+o	Open the provided URL in your browser.
+
+
+Minikube dashboard
+
+kubectl delete deployment mynginx
+kubectl delete service mynginx
+
+minikube stop
+
+minikube delete
+
+
+
+
+11.nagios
+
+
+
+2)Nagios(docker on lo pettu)
+
+
+docker pull jasonrivers/nagios:latest
+docker run --name nagiosdemo -p 8888:80 jasonrivers/nagios:latest
+
+Open your browser and navigate to:
+http://localhost:8888
+o	Login Credentials:
+	Username: nagiosadmin
+	Password: nagios
+
+
+docker stop nagiosdemo
+
+docker rm nagiosdemo
+
+docker images
+
+docker rmi jasonrivers/nagios:latest
+
+
+12.webhooktrigeering
+
+
+node {
+    properties([
+        pipelineTriggers([
+            [$class: 'GitHubPushTrigger']
+        ])
+    ])
+
+    stage('Checkout') {
+        checkout([$class: 'GitSCM',
+            branches: [[name: '*/main']],
+            userRemoteConfigs: [[
+                url: 'https://github.com/Mohithsai2006/webhook.git',
+                credentialsId: '1a55c9f2-4b4f-4ea0-8f81-7b03baf86858'
+            ]]
+        ])
+    }
+
+    stage('Build') {
+        echo "Webhook triggered pipeline build!"
+    }
+}
+
+
+
+
+
+
+
+https://preinterpretative-jaliyah-nonadjacent.ngrok-free.dev/
+
