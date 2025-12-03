@@ -410,6 +410,11 @@ node {
 
 
 
+13.tomcat user pwd
+
+<role rolename="manager-gui"/>
+<role rolename="manager-script"/>
+<user username="admin" password="admin123" roles="manager-gui,manager-script"/>
 
 
 
