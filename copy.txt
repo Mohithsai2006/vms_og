@@ -375,8 +375,17 @@ docker rmi jasonrivers/nagios:latest
 
 
 12.webhooktrigeering
-
-
+-->go to jenkins create new job pipeline and select git hub webhook trigger and paste below script make sure that u have created h.txt in a git repo and replace that url in the below script
+-->run  the pipeline 
+-->go to git hub settings developer settings then crate PAT token classic and check all ticks and create copy the PAT token
+-->come to jenkins go to  settings and go to credentials and add the global credntials select secret text and place secret in that box with copied PAT token
+-->now run the ngrok in ur pc ngrok http 8888
+-->copy the pubic ngrok url like:  https://preinterpretative-jaliyah-nonadjacent.ngrok-free.dev/
+-->go to ur repo in which h.txt exists and go to repo settings and select webhook create new one replace the payload url with 
+https://preinterpretative-jaliyah-nonadjacent.ngrok-free.dev/github-webhook/
+make sure place ur pubic url and add /github-webhook/ at end
+then click create 
+-->now change the file content in the git and commit and see the triggering in jenkins
 node {
     properties([
         pipelineTriggers([
@@ -405,5 +414,5 @@ node {
 
 
 
-https://preinterpretative-jaliyah-nonadjacent.ngrok-free.dev/
+
 
